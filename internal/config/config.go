@@ -46,10 +46,8 @@ type Config struct {
 	TransparentProxy struct {
 		Enabled         bool   `json:"enabled"`
 		TCPPort         int    `json:"tcp_port"`
-		UDPPort         int    `json:"udp_port"`
 		ChainsPrefix    string `json:"chains_prefix"`
 		ApplyAfterSSH   bool   `json:"apply_after_ssh_connected"`
-		UDPGWServerAddr string `json:"udpgw_server_addr"`
 	} `json:"transparent_proxy"`
 	Hotspot struct {
 		Enabled    bool     `json:"enabled"`
@@ -88,7 +86,6 @@ func DefaultConfig() Config {
 	cfg.LocalProxy.SocksPort = 1080
 	cfg.TransparentProxy.Enabled = true
 	cfg.TransparentProxy.TCPPort = 10810
-	cfg.TransparentProxy.UDPPort = 7300
 	cfg.TransparentProxy.ChainsPrefix = "SSHC"
 	cfg.TransparentProxy.ApplyAfterSSH = true
 	cfg.Hotspot.Enabled = true
@@ -117,9 +114,6 @@ func (c *Config) Normalize() {
 	}
 	if c.TransparentProxy.TCPPort <= 0 {
 		c.TransparentProxy.TCPPort = 10810
-	}
-	if c.TransparentProxy.UDPPort <= 0 {
-		c.TransparentProxy.UDPPort = 7300
 	}
 	if c.TransparentProxy.ChainsPrefix == "" {
 		c.TransparentProxy.ChainsPrefix = "SSHC"

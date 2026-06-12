@@ -75,12 +75,6 @@ func (c *Client) DialTCP(ctx context.Context, network, addr string) (net.Conn, e
 	return c.ssh.DialContext(ctx, network, addr)
 }
 
-// DialUDP opens a TCP connection through SSH to the server's UDPGW port.
-// (UDPGW uses TCP as transport; the wire format is framed.)
-func (c *Client) DialUDPGW(ctx context.Context, network, addr string) (net.Conn, error) {
-	return c.ssh.DialContext(ctx, network, addr)
-}
-
 func (c *Client) Add()        { atomic.AddInt32(&c.active, 1) }
 func (c *Client) Remove()     { atomic.AddInt32(&c.active, -1) }
 func (c *Client) Active() int { return int(atomic.LoadInt32(&c.active)) }

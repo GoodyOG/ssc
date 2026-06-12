@@ -41,7 +41,6 @@ import (
 type Config struct {
 	ChainsPrefix   string
 	TCPPort        int
-	UDPPort        int
 	APIPort        int
 	SocksPort      int
 	DNSForwardPort int
@@ -131,10 +130,6 @@ func Apply(cfg Config, bypassIPs []string) error {
 	if tcpPort <= 0 {
 		tcpPort = 10810
 	}
-	udpPort := cfg.UDPPort
-	if udpPort <= 0 {
-		udpPort = 7300
-	}
 
 	redirChain := prefix + "_OUT"  // nat OUTPUT REDIRECT (local TCP)
 	tproxyChain := prefix + "_PRE" // mangle PREROUTING TPROXY (hotspot)
@@ -188,54 +183,6 @@ func Apply(cfg Config, bypassIPs []string) error {
 		return fmt.Errorf("hook nat OUTPUT -> %s: %v", redirChain, err)
 	}
 
-	// ── Phase 2b: mangle OUTPUT MARK chain (LOCAL UDP capture) ──────────
-	// Architecture: locally-generated UDP cannot use TPROXY in OUTPUT (kernel
-	// limitation). Instead we MARK UDP packets in mangle OUTPUT and use the
-	// existing policy routing (fwmark → table 100 → lo) to redirect them
-	// through lo, where they hit PREROUTING and the TPROXY rule.
-	// This matches boxproxy and AndroidTProxyShell approach.
-	mangleOutChain := prefix + "_MOUT"
-	ensureChain("mangle", mangleOutChain)
-
-	// Bypass local CIDRs
-	for _, cidr := range localCIDRs {
-		addRule("mangle", mangleOutChain, "-d", cidr, "-j", "RETURN")
-	}
-
-	// Bypass SSH server IPs
-	for _, ip := range bypassIPs {
-		ip = strings.TrimSpace(ip)
-		if ip != "" {
-			addRule("mangle", mangleOutChain, "-d", ip, "-j", "RETURN")
-		}
-	}
-
-	// Bypass daemon's own UDP port + API/SOCKS ports
-	if udpPort > 0 {
-		addRule("mangle", mangleOutChain, "-p", "udp", "--dport", strconv.Itoa(udpPort), "-j", "RETURN")
-	}
-	for _, p := range []int{cfg.APIPort, cfg.SocksPort} {
-		if p > 0 {
-			addRule("mangle", mangleOutChain, "-p", "udp", "--dport", strconv.Itoa(p), "-j", "RETURN")
-		}
-	}
-
-	// DNS bypass
-	if cfg.DNSForwardPort > 0 {
-		addRule("mangle", mangleOutChain, "-p", "udp", "--dport", "53", "-j", "RETURN")
-	}
-
-	// MARK remaining UDP → triggers fwmark policy routing → lo → PREROUTING TPROXY
-	addRule("mangle", mangleOutChain, "-p", "udp", "-j", "MARK", "--set-xmark", MarkStr)
-
-	// Hook into mangle OUTPUT
-	delRule("mangle", "OUTPUT", "-j", mangleOutChain)
-	if err := insRule("mangle", "OUTPUT", "-j", mangleOutChain); err != nil {
-		cleanupRules(cfg)
-		return fmt.Errorf("hook mangle OUTPUT -> %s: %v", mangleOutChain, err)
-	}
-	log.Printf("[iptables] Local UDP capture: mangle OUTPUT -> %s (fwmark %s -> lo -> TPROXY :%d)", mangleOutChain, MarkStr, udpPort)
-
 	// ── Phase 3: mangle PREROUTING TPROXY chain (HOTSPOT TCP+UDP) ───────
 	ensureChain("mangle", tproxyChain)
 
@@ -260,11 +207,9 @@ func Apply(cfg Config, bypassIPs []string) error {
 		addRule("mangle", tproxyChain, "-p", "udp", "--dport", "53", "-j", "RETURN")
 	}
 
-	// TPROXY for TCP and UDP
+	// TPROXY for TCP
 	addRule("mangle", tproxyChain, "-p", "tcp", "-j", "TPROXY",
 		"--on-port", strconv.Itoa(tcpPort), "--tproxy-mark", MarkStr)
-	addRule("mangle", tproxyChain, "-p", "udp", "-j", "TPROXY",
-		"--on-port", strconv.Itoa(udpPort), "--tproxy-mark", MarkStr)
 
 	// Hook PREROUTING → tproxyChain
 	delRule("mangle", "PREROUTING", "-j", tproxyChain)
@@ -281,11 +226,6 @@ func Apply(cfg Config, bypassIPs []string) error {
 	delRule("mangle", "PREROUTING", "-p", "tcp", "-m", "socket", "--transparent", "-j", "DIVERT")
 	if err := insRule("mangle", "PREROUTING", "-p", "tcp", "-m", "socket", "--transparent", "-j", "DIVERT"); err != nil {
 		log.Printf("[iptables] DIVERT TCP insert failed (non-fatal): %v", err)
-	}
-	// UDP DIVERT — prevents loop when marked UDP hits PREROUTING and socket already exists
-	delRule("mangle", "PREROUTING", "-p", "udp", "-m", "socket", "--transparent", "-j", "DIVERT")
-	if err := insRule("mangle", "PREROUTING", "-p", "udp", "-m", "socket", "--transparent", "-j", "DIVERT"); err != nil {
-		log.Printf("[iptables] DIVERT UDP insert failed (non-fatal): %v", err)
 	}
 
 	// ── Phase 5: DNS hijack ─────────────────────────────────────────────
@@ -350,10 +290,8 @@ func cleanupRules(cfg Config) {
 
 	// Detach current hooks
 	delRule("nat", "OUTPUT", "-p", "tcp", "-j", prefix+"_OUT")
-	delRule("mangle", "OUTPUT", "-j", prefix+"_MOUT")
 	delRule("mangle", "PREROUTING", "-j", prefix+"_PRE")
 	delRule("mangle", "PREROUTING", "-p", "tcp", "-m", "socket", "--transparent", "-j", "DIVERT")
-	delRule("mangle", "PREROUTING", "-p", "udp", "-m", "socket", "--transparent", "-j", "DIVERT")
 
 	// Detach all legacy hooks
 	for _, ch := range allChains(prefix) {
@@ -549,7 +487,7 @@ func sh(cmdline string) {
 }
 
 // LogRules logs the current iptables SSHCustom rules for debugging.
-func LogRules(prefix string, tcpPort, udpPort int) {
+func LogRules(prefix string, tcpPort int) {
 	out, err := exec.Command("iptables", "-w", "10", "-t", "nat", "-L", "OUTPUT", "-n", "-v").Output()
 	if err == nil {
 		log.Printf("[iptables] === nat OUTPUT ===")
@@ -578,13 +516,6 @@ func LogRules(prefix string, tcpPort, udpPort int) {
 	out, err = exec.Command("iptables", "-w", "10", "-t", "mangle", "-L", "SSHC_PRE", "-n", "-v").Output()
 	if err == nil {
 		log.Printf("[iptables] === SSHC_PRE chain ===")
-		for _, line := range strings.Split(string(out), "\n") {
-			log.Printf("[iptables]   %s", strings.TrimRight(line, " \n\r"))
-		}
-	}
-	out, err = exec.Command("iptables", "-w", "10", "-t", "mangle", "-L", prefix+"_MOUT", "-n", "-v").Output()
-	if err == nil {
-		log.Printf("[iptables] === %s_MOUT chain ===", prefix)
 		for _, line := range strings.Split(string(out), "\n") {
 			log.Printf("[iptables]   %s", strings.TrimRight(line, " \n\r"))
 		}

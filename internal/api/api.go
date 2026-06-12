@@ -1137,7 +1137,6 @@ func configSummary(cfg config.Config) map[string]any {
 		"transparent_proxy": map[string]any{
 			"enabled":       cfg.TransparentProxy.Enabled,
 			"tcp_port":      cfg.TransparentProxy.TCPPort,
-			"udp_port":      cfg.TransparentProxy.UDPPort,
 			"chains_prefix": cfg.TransparentProxy.ChainsPrefix,
 		},
 	}
@@ -1146,15 +1145,12 @@ func configSummary(cfg config.Config) map[string]any {
 func apiCapabilities(cfg config.Config) []apiv1.Capability {
 	return []apiv1.Capability{
 		{Name: "tproxy_tcp", Enabled: cfg.TransparentProxy.Enabled, Description: "TPROXY-based transparent TCP tunneling"},
-		{Name: "tproxy_udp", Enabled: cfg.TransparentProxy.Enabled, Description: "TPROXY-based UDP tunneling via BadVPN UDPGW"},
 		{Name: "hotspot_tcp", Enabled: cfg.Hotspot.Enabled && cfg.Hotspot.TCP, Description: "TCP sharing for tethered clients"},
-		{Name: "hotspot_udp", Enabled: cfg.Hotspot.Enabled, Description: "UDP sharing for tethered clients"},
 		{Name: "socks5", Enabled: cfg.LocalProxy.SocksEnabled, Description: "local SOCKS5 proxy (RFC 1928 + RFC 1929)"},
 		{Name: "quic_block", Enabled: cfg.TransparentProxy.Enabled, Description: "drops UDP 443/80 so QUIC apps fall back to TCP"},
 		{Name: "ipv6_disable", Enabled: cfg.TransparentProxy.Enabled, Description: "disables IPv6 while active to prevent leaks"},
 		{Name: "captive_portal_bypass", Enabled: cfg.TransparentProxy.Enabled, Description: "localhost 204 server for captive portal bypass"},
 		{Name: "ssh_payload_injection", Enabled: cfg.Transport.PayloadIsCore, Description: "inject HTTP payload before SSH handshake"},
-		{Name: "udpgw", Enabled: true, Description: "BadVPN UDPGW wire protocol on port " + strconv.Itoa(cfg.TransparentProxy.UDPPort)},
 	}
 }
 

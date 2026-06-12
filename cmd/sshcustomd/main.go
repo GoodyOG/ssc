@@ -37,14 +37,12 @@ import (
 	"github.com/GoodyOG/SSHCustom_Magisk/internal/socks5"
 	"github.com/GoodyOG/SSHCustom_Magisk/internal/transport"
 	"github.com/GoodyOG/SSHCustom_Magisk/internal/tunnel"
-	"github.com/GoodyOG/SSHCustom_Magisk/internal/udpgw"
 	"github.com/GoodyOG/SSHCustom_Magisk/internal/version"
 )
 
 const (
 	dnsForwardPort  = 5353
 	dnsUpstream     = "8.8.8.8:53"
-	udpgwServerPort = ":7300"
 )
 
 func main() {
@@ -218,7 +216,6 @@ func run(args []string) {
 		listenerCancel context.CancelFunc
 		iptablesUp     bool
 		socksSrv       *socks5.Server
-		udpgwSrv       *udpgw.Server
 		lifecycleMu    sync.Mutex
 	)
 
@@ -283,7 +280,7 @@ func run(args []string) {
 			}()
 
 			tunnelLoop(tunnelCtx, &cfgCopy, spCopy, state, &sshClient,
-				&listenerCancel, &iptablesUp, &socksSrv, &udpgwSrv)
+				&listenerCancel, &iptablesUp, &socksSrv)
 
 			if explicitStop.Load() || ctx.Err() != nil {
 				tunnelRunning.Store(false)
@@ -379,7 +376,6 @@ func tunnelLoop(
 	listenerCancel *context.CancelFunc,
 	iptablesUp *bool,
 	socksSrv **socks5.Server,
-	udpgwSrv **udpgw.Server,
 ) {
 	const baseDelay = 1 * time.Second
 	const maxDelay = 30 * time.Second
@@ -450,7 +446,7 @@ func tunnelLoop(
 		if *listenerCancel == nil {
 			lctx, lcancel := context.WithCancel(ctx)
 			*listenerCancel = lcancel
-			startListeners(lctx, cfg, sp, curClient, state, socksSrv, udpgwSrv)
+			startListeners(lctx, cfg, sp, curClient, state, socksSrv)
 			time.Sleep(150 * time.Millisecond)
 
 			if cfg.TransparentProxy.Enabled {
@@ -461,7 +457,7 @@ func tunnelLoop(
 					*iptablesUp = true
 					state.Set(func() { state.TransparentApplied = true; state.HotspotRunning = cfg.Hotspot.Enabled && cfg.Hotspot.TCP })
 					// Log iptables diagnostic for debugging
-					iptables.LogRules("SSHC", cfg.TransparentProxy.TCPPort, cfg.TransparentProxy.UDPPort)
+					iptables.LogRules("SSHC", cfg.TransparentProxy.TCPPort)
 				}
 			}
 		}
@@ -514,7 +510,6 @@ func startListeners(
 	curClient func() *tunnel.Client,
 	state *api.State,
 	socksSrv **socks5.Server,
-	udpgwSrv **udpgw.Server,
 ) {
 	// SOCKS5
 	if cfg.LocalProxy.SocksEnabled {
@@ -553,36 +548,7 @@ func startListeners(
 		log.Printf("[dns-forward] disabled (dns.enabled=false)")
 	}
 
-	// UDPGW — BadVPN UDP client for tunneling UDP traffic through SSH tunnel.
-	// The server must have badvpn-udpgw running on cfg.TransparentProxy.UDPPort.
-	// UDPGW connects through the SSH tunnel to 127.0.0.1 (server's localhost) by
-	// default — the UDPGW dialer goes via cl.DialUDPGW which creates an SSH
-	// direct-tcpip channel, so 127.0.0.1 means the SSH server's loopback.
-	if cfg.TransparentProxy.Enabled && cfg.TransparentProxy.UDPPort > 0 {
-		udpgwHost := cfg.TransparentProxy.UDPGWServerAddr
-		if udpgwHost == "" {
-			udpgwHost = "127.0.0.1"
-		}
-		serverUDPGWAddr := fmt.Sprintf("%s:%d", udpgwHost, cfg.TransparentProxy.UDPPort)
-		s := udpgw.NewServer(udpgw.Config{
-			ListenAddr: fmt.Sprintf(":%d", cfg.TransparentProxy.UDPPort),
-		}, func(ctx context.Context, network, addr string) (net.Conn, error) {
-			cl := curClient()
-			if cl == nil { return nil, fmt.Errorf("tunnel not connected") }
-			return cl.DialUDPGW(ctx, network, addr)
-		})
-		*udpgwSrv = s
-		go func() {
-			state.Set(func() { state.UDPGWRunning = true })
-			log.Printf("[udpgw] starting on port %d -> tunnel:%s", cfg.TransparentProxy.UDPPort, serverUDPGWAddr)
-			if err := s.Serve(ctx, serverUDPGWAddr); err != nil {
-				log.Printf("[udpgw] exited: %v", err)
-			}
-			state.Set(func() { state.UDPGWRunning = false })
-		}()
-	} else {
-		log.Printf("[udpgw] disabled (enabled=%v udp_port=%d)", cfg.TransparentProxy.Enabled, cfg.TransparentProxy.UDPPort)
-	}
+	// UDPGW is removed completely, UDP is no longer tunneled.
 }
 
 // ── Config helpers ─────────────────────────────────────────────────────────
@@ -603,7 +569,7 @@ func transparentAddr(cfg config.Config) string {
 func iptablesCfg(cfg config.Config) iptables.Config {
 	return iptables.Config{
 		ChainsPrefix: cfg.TransparentProxy.ChainsPrefix,
-		TCPPort: cfg.TransparentProxy.TCPPort, UDPPort: cfg.TransparentProxy.UDPPort,
+		TCPPort: cfg.TransparentProxy.TCPPort,
 		APIPort: cfg.API.Port, SocksPort: cfg.LocalProxy.SocksPort,
 		DNSForwardPort: dnsForwardPort,
 		DNSHijack:      cfg.DNS.Enabled && cfg.DNS.Hijack,
