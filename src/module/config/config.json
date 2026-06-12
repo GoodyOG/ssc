@@ -31,10 +31,8 @@
   "transparent_proxy": {
     "enabled": true,
     "tcp_port": 10810,
-    "udp_port": 7300,
     "chains_prefix": "SSHC",
-    "apply_after_ssh_connected": true,
-    "udpgw_server_addr": ""
+    "apply_after_ssh_connected": true
   },
   "hotspot": {
     "enabled": true,

@@ -488,36 +488,5 @@ func sh(cmdline string) {
 
 // LogRules logs the current iptables SSHCustom rules for debugging.
 func LogRules(prefix string, tcpPort int) {
-	out, err := exec.Command("iptables", "-w", "10", "-t", "nat", "-L", "OUTPUT", "-n", "-v").Output()
-	if err == nil {
-		log.Printf("[iptables] === nat OUTPUT ===")
-		for _, line := range strings.Split(string(out), "\n") {
-			if strings.Contains(line, prefix) || strings.Contains(line, "REDIRECT") || strings.Contains(line, "udp") {
-				log.Printf("[iptables]   %s", strings.TrimRight(line, " \n\r"))
-			}
-		}
-	}
-	out, err = exec.Command("iptables", "-w", "10", "-t", "mangle", "-L", "PREROUTING", "-n", "-v").Output()
-	if err == nil {
-		log.Printf("[iptables] === mangle PREROUTING (SSHC rules) ===")
-		for _, line := range strings.Split(string(out), "\n") {
-			if strings.Contains(line, prefix) || strings.Contains(line, "TPROXY") || strings.Contains(line, "DIVERT") {
-				log.Printf("[iptables]   %s", strings.TrimRight(line, " \n\r"))
-			}
-		}
-	}
-	out, err = exec.Command("iptables", "-w", "10", "-t", "nat", "-L", "SSHC_OUT", "-n", "-v").Output()
-	if err == nil {
-		log.Printf("[iptables] === SSHC_OUT chain ===")
-		for _, line := range strings.Split(string(out), "\n") {
-			log.Printf("[iptables]   %s", strings.TrimRight(line, " \n\r"))
-		}
-	}
-	out, err = exec.Command("iptables", "-w", "10", "-t", "mangle", "-L", "SSHC_PRE", "-n", "-v").Output()
-	if err == nil {
-		log.Printf("[iptables] === SSHC_PRE chain ===")
-		for _, line := range strings.Split(string(out), "\n") {
-			log.Printf("[iptables]   %s", strings.TrimRight(line, " \n\r"))
-		}
-	}
+	// Debugging log removed to keep logs clean
 }

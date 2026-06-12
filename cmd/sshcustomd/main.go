@@ -6,7 +6,6 @@
 //   - internal/tunnel     — single-connection SSH engine, keepalive, stream retry
 //   - internal/socks5     — local SOCKS5 proxy (RFC 1928 + RFC 1929)
 //   - internal/iptables   — REDIRECT (local) + TPROXY (hotspot) + DNS + leak prevention
-//   - internal/udpgw      — BadVPN UDPGW client (disabled by default)
 //   - internal/dnsx       — Android-aware DNS resolver
 //   - internal/api        — HTTP API + SSE + WebUI
 //   - internal/metrics    — /proc CPU/memory sampling

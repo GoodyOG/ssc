@@ -69,8 +69,6 @@ type State struct {
 	TransparentRunning  bool      `json:"transparent_running"`
 	TransparentApplied  bool      `json:"transparent_applied"`
 	HotspotRunning      bool      `json:"hotspot_running"`
-	UDPGWRunning        bool      `json:"udpgw_running"`
-	UDPGWActiveFlows    int       `json:"udpgw_active_flows"`
 	CPUPercent          float64   `json:"cpu_percent"`
 	MemoryRSSBytes      uint64    `json:"memory_rss_bytes"`
 	MemoryRSSMB         float64   `json:"memory_rss_mb"`
@@ -194,8 +192,6 @@ func (s *State) Snapshot() map[string]any {
 		"transparent_running":     s.TransparentRunning,
 		"transparent_applied":     s.TransparentApplied,
 		"hotspot_running":         s.HotspotRunning,
-		"udpgw_running":           s.UDPGWRunning,
-		"udpgw_active_flows":      s.UDPGWActiveFlows,
 		"cpu_percent":             s.CPUPercent,
 		"memory_rss_bytes":        s.MemoryRSSBytes,
 		"memory_rss_mb":           s.MemoryRSSMB,

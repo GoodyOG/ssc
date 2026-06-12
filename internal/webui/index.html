@@ -530,11 +530,6 @@
             <span class="supporting-text" id="streamsMeta">no active streams</span>
           </div>
           <div class="card info-card info-card--data">
-            <p class="info-label">UDP Flows</p>
-            <p class="info-value" id="udpFlowsValue">--</p>
-            <span class="supporting-text">active UDPGW connections</span>
-          </div>
-          <div class="card info-card info-card--data">
             <p class="info-label">CPU</p>
             <p class="info-value" id="cpuValue">--</p>
             <span class="supporting-text">daemon process</span>
@@ -941,7 +936,6 @@
       $('poolMeta').textContent = (s.pool_healthy ? 'connection healthy' : (s.pool_reconnecting ? 'reconnecting' : 'idle')) + (s.pool_last_error ? ' / ' + s.pool_last_error : '');
       $('streamsValue').textContent = String(s.pool_streams || 0);
       $('streamsMeta').textContent = 'active streams (single SSH connection)';
-      $('udpFlowsValue').textContent = String(s.udpgw_active_flows || 0);
       $('routeValue').textContent = s.interface || '--';
       $('routeMeta').textContent = s.gateway ? 'gateway ' + s.gateway : (s.source_ip || 'gateway unavailable');
       $('resolverValue').textContent = s.resolver_method ? 'android_shell_dns' : (s.dns_mode || '--');
