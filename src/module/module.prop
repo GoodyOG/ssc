@@ -1,0 +1,7 @@
+id=sshcustom
+name=SSHCustom-Magisk
+version=v2.8.0
+versionCode=28000
+author=GoodyOG
+description=SSH tunnel transparent proxy for Android. Full TCP+UDP TPROXY, BadVPN UDPGW (gaming/VoIP), DNS tunnel, SOCKS5, QUIC block, IPv6 disable, captive portal bypass, hotspot sharing. Dashboard at http://127.0.0.1:9190
+updateJson=https://raw.githubusercontent.com/GoodyOG/SSHCustom-Magisk/main/update.json
