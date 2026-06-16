@@ -1038,7 +1038,7 @@ func buildTransport(mode string, payload config.PayloadCfg, hp *config.HTTPProxy
 		}
 	}
 	if len(payload.AllowStatuses) == 0 {
-		payload.AllowStatuses = []int{101, 200, 204, 302}
+		payload.AllowStatuses = []int{101, 200, 204, 301, 302}
 	}
 
 	chain := []string{"tcp"}
