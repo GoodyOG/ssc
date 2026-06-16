@@ -151,7 +151,19 @@ func openPreparedConn(ctx context.Context, cfg config.Config, p config.Profile) 
 	}
 
 	statuses := ExtractHTTPStatuses(string(all))
-	if len(statuses) > 0 && !AllowedStatuses(statuses, p.Transport.Payload.AllowStatuses) {
+	// Always allow 301 (redirect) — CDNs/proxies commonly return this before 101
+	effectiveAllowed := p.Transport.Payload.AllowStatuses
+	has301 := false
+	for _, s := range effectiveAllowed {
+		if s == 301 {
+			has301 = true
+			break
+		}
+	}
+	if !has301 {
+		effectiveAllowed = append(append([]int{}, effectiveAllowed...), 301)
+	}
+	if len(statuses) > 0 && !AllowedStatuses(statuses, effectiveAllowed) {
 		conn.Close()
 		return nil, Result{Statuses: statuses, Preview: preview(all)}, fmt.Errorf("http status not allowed: %v", statuses)
 	}
